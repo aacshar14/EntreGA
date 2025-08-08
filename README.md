@@ -1,3 +1,4 @@
+
 # 🧂 EntréGA - Inventario Multi-Cliente
 
 EntréGA es una solución ligera y sin complicaciones para controlar el inventario de productos como salsas, galletas u otros bienes físicos, ideal para pequeños negocios y clientes informales.
