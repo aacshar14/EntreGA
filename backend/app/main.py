@@ -14,11 +14,29 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
-# Sample client data
+# Sample client data with real Google Sheets URL
 clientes = [
-    {"nombre": "Juan", "sheet": "https://docs.google.com/spreadsheets/d/juan-sheet", "estado": "Activo"},
-    {"nombre": "Marta", "sheet": "https://docs.google.com/spreadsheets/d/marta-sheet", "estado": "Activo"},
-    {"nombre": "Luis", "sheet": "https://docs.google.com/spreadsheets/d/luis-sheet", "estado": "Inactivo"},
+    {
+        "nombre": "Juan Pérez", 
+        "sheet": "https://docs.google.com/spreadsheets/d/1QrXgIT4l2FdNQssWvegwNyOzRWqeQyCu-YkYfWN4v7g/edit?gid=0#gid=0", 
+        "estado": "Activo",
+        "ultima_entrega": "2025-08-07",
+        "productos": ["Salsa Verde", "Salsa Roja", "Tortillas"]
+    },
+    {
+        "nombre": "Marta García", 
+        "sheet": "https://docs.google.com/spreadsheets/d/1QrXgIT4l2FdNQssWvegwNyOzRWqeQyCu-YkYfWN4v7g/edit?gid=0#gid=0", 
+        "estado": "Activo",
+        "ultima_entrega": "2025-08-08",
+        "productos": ["Salsa Verde", "Guacamole", "Queso"]
+    },
+    {
+        "nombre": "Luis Rodríguez", 
+        "sheet": "https://docs.google.com/spreadsheets/d/1QrXgIT4l2FdNQssWvegwNyOzRWqeQyCu-YkYfWN4v7g/edit?gid=0#gid=0", 
+        "estado": "Inactivo",
+        "ultima_entrega": "2025-07-15",
+        "productos": ["Salsa Roja", "Crema"]
+    },
 ]
 
 @app.on_event("startup")
