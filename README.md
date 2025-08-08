@@ -1,6 +1,8 @@
 # 🧂 EntréGA - Inventario Multi-Cliente
 
-Este proyecto es un sistema de inventario digital para productos como salsas, galletas, etc., pensado para pequeños negocios o clientes informales que usan Google Sheets para registrar entregas, caducidades y pagos.
+EntréGA es una solución ligera y sin complicaciones para controlar el inventario de productos como salsas, galletas u otros bienes físicos, ideal para pequeños negocios y clientes informales.
+
+Usa Google Sheets como entrada, FastAPI como backend y n8n como integrador. 100% Docker-ready y pensado para escalar.
 
 ## 🚀 ¿Qué incluye?
 
