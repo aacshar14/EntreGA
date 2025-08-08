@@ -1,0 +1,82 @@
+{
+  "name": "Google Sheets to Salsa MCP",
+  "nodes": [
+    {
+      "parameters": {
+        "sheetId": "",
+        "range": "Inventario!A2:E",
+        "valueRenderMode": "FORMATTED_VALUE",
+        "dataStartRow": 2,
+        "options": {}
+      },
+      "id": "1",
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google-sheets-credentials-id",
+          "name": "Google Sheets Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "\nreturn items.map(item => {\n  const [producto, cantidad, fecha_entrega, fecha_caducidad, cliente] = item.json.values;\n  return {\n    json: {\n      producto,\n      cantidad: parseInt(cantidad),\n      fecha_entrega,\n      fecha_caducidad,\n      cliente\n    }\n  };\n});\n"
+      },
+      "id": "2",
+      "name": "Format Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "http://localhost:8000/entregas/masivo",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={{ $json }}"
+      },
+      "id": "3",
+      "name": "Send to API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        750,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Format Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Data": {
+      "main": [
+        [
+          {
+            "node": "Send to API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,17 @@
+# SQLite
+*.db
+
+# Python
+__pycache__/
+*.pyc
+
+# Docker artifacts
+*.log
+.env
+
+# Docs
+*.docx
+
+# OS
+.DS_Store
+Thumbs.db
