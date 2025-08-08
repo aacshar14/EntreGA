@@ -11,4 +11,7 @@ COPY app/ ./app/
 # Create an __init__.py file if it doesn't exist
 RUN touch app/__init__.py
 
+# Create static directory for future use
+RUN mkdir -p app/static
+
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
