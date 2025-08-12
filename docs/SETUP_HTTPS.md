@@ -5,6 +5,7 @@
 - ✅ SSL certificado configurado con Let's Encrypt
 - ✅ Acceso SSH a la VM de GCP
 - ✅ Docker y Docker Compose instalados
+- ✅ Certificados SSL en `/etc/letsencrypt/live/n8ne01.entrega.space/`
 
 ## 🔧 Configuración Automática
 
@@ -15,7 +16,13 @@
 ssh hgsadepe@n8ne01.entrega.space
 
 # Navegar al directorio del proyecto
-cd ~/EntreGA/compose
+cd ~/EntreGA
+
+# Hacer pull de los cambios
+git pull origin main
+
+# Navegar al directorio compose
+cd compose
 
 # Dar permisos de ejecución al script
 chmod +x setup-ssl.sh
@@ -33,11 +40,29 @@ docker compose -f docker-compose-gcp.yml down
 # 2. Copiar configuración HTTPS
 cp env.txt .env
 
-# 3. Levantar n8n con HTTPS
+# 3. Verificar certificados SSL
+sudo certbot certificates
+
+# 4. Levantar n8n con HTTPS y certificados SSL
 docker compose -f docker-compose-gcp.yml up -d
 
-# 4. Verificar funcionamiento
+# 5. Verificar funcionamiento
 curl -k https://n8ne01.entrega.space:5678
+```
+
+## 🔒 Configuración SSL
+
+### Certificados Montados
+
+El Docker Compose monta automáticamente:
+- **Clave privada:** `/etc/letsencrypt/live/n8ne01.entrega.space/privkey.pem`
+- **Certificado público:** `/etc/letsencrypt/live/n8ne01.entrega.space/fullchain.pem`
+
+### Variables de Entorno SSL
+
+```bash
+N8N_SSL_KEY=/etc/ssl/private/privkey.pem
+N8N_SSL_CERT=/etc/ssl/certs/fullchain.pem
 ```
 
 ## 🌐 URLs de Acceso
@@ -66,6 +91,9 @@ sudo certbot certificates
 
 # Verificar logs de n8n
 docker logs compose-n8n-1
+
+# Verificar certificados montados
+docker exec compose-n8n-1 ls -la /etc/ssl/
 ```
 
 ## 🆘 Solución de Problemas
@@ -80,4 +108,26 @@ docker logs compose-n8n-1
 
 ### Error: "SSL certificate"
 - Verificar que Let's Encrypt esté funcionando
-- Revisar logs de nginx/apache
+- Verificar que los certificados estén montados en el contenedor
+- Revisar permisos de certificados: `sudo chmod 644 /etc/letsencrypt/live/n8ne01.entrega.space/fullchain.pem`
+
+### Error: "SSL routines:ssl3_get_record:wrong version number"
+- Verificar que n8n se haya reiniciado completamente
+- Verificar que las variables de entorno SSL estén configuradas
+- Verificar que los certificados estén montados correctamente
+
+## 🔄 Reinicio Completo
+
+Si hay problemas persistentes:
+
+```bash
+# Detener completamente
+docker compose -f docker-compose-gcp.yml down
+
+# Eliminar contenedor y volúmenes
+docker rm -f compose-n8n-1
+docker volume rm compose_n8n_data
+
+# Levantar desde cero
+docker compose -f docker-compose-gcp.yml up -d
+```

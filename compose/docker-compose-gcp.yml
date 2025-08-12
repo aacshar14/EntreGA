@@ -22,8 +22,14 @@ services:
       - N8N_SECURE_COOKIE=false
       - N8N_DATABASE_TYPE=sqlite
       - N8N_DATABASE_SQLITE_DATABASE=/home/node/.n8n/database.sqlite
+      # SSL Configuration
+      - N8N_SSL_KEY=/etc/ssl/private/privkey.pem
+      - N8N_SSL_CERT=/etc/ssl/certs/fullchain.pem
     volumes:
       - n8n_data:/home/node/.n8n
+      # Mount SSL certificates
+      - /etc/letsencrypt/live/n8ne01.entrega.space/privkey.pem:/etc/ssl/private/privkey.pem:ro
+      - /etc/letsencrypt/live/n8ne01.entrega.space/fullchain.pem:/etc/ssl/certs/fullchain.pem:ro
     networks:
       - entrega_network
 
