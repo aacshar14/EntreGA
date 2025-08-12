@@ -1,0 +1,304 @@
+{
+  "name": "WhatsApp Intelligent Agent - EntreGA",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/v1/wa/inbound",
+        "options": {}
+      },
+      "id": "webhook-whatsapp",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "whatsapp-inbound"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract WhatsApp message data\nconst entry = $input.first().json.entry[0];\nconst changes = entry.changes[0];\nconst value = changes.value;\nconst message = value.messages[0];\nconst contact = value.contacts[0];\n\nreturn {\n  json: {\n    from_phone: message.from,\n    message_id: message.id,\n    message_type: message.type,\n    message_body: message.text?.body || '',\n    contact_name: contact.profile?.name || 'Unknown',\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "extract-message-data",
+      "name": "Extract Message Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "sheetId": "1snac3K5KC4mBDfkf8SAyivDUueKyo-lADMfWG5ByHhA",
+        "range": "Tenants_Contacts!A2:D",
+        "options": {}
+      },
+      "id": "lookup-tenant",
+      "name": "Lookup Tenant by Phone",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Find tenant by phone number\nconst phone = $input.first().json.from_phone;\nconst contacts = $input.all();\n\nlet tenant = null;\nfor (const contact of contacts) {\n  if (contact.json.phone === phone && contact.json.active === 'true') {\n    tenant = {\n      tenant_id: contact.json.tenant,\n      client_name: contact.json.client_name,\n      sheet_id: contact.json.tenant === 'EC001' ? '1snac3K5KC4mBDfkf8SAyivDUueKyo-lADMfWG5ByHhA' : '1QrXgIT4l2FdNQssWvegwNyOzRWqeQyCu-YkYfWN4v7g'\n    };\n    break;\n  }\n}\n\nif (!tenant) {\n  throw new Error('Phone not found in contacts or inactive');\n}\n\nreturn {\n  json: {\n    ...$input.first().json,\n    ...tenant\n  }\n};"
+      },
+      "id": "find-tenant",
+      "name": "Find Tenant",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Intelligent Agent: Parse and understand inventory request\nconst message = $input.first().json.message_body.toLowerCase();\nconst phone = $input.first().json.from_phone;\n\n// Advanced patterns for different request types\nconst patterns = [\n  // Direct requests\n  { pattern: /necesito\\s+(\\d+)\\s+(.+)/i, type: 'direct_request' },\n  { pattern: /quiero\\s+(\\d+)\\s+(.+)/i, type: 'direct_request' },\n  { pattern: /dame\\s+(\\d+)\\s+(.+)/i, type: 'direct_request' },\n  // Vague requests\n  { pattern: /(?:necesito|quiero|busco)\\s+(.+)/i, type: 'vague_request' },\n  // Questions\n  { pattern: /(?:tienes|hay)\\s+(.+)\\?/i, type: 'inquiry' },\n  // Confirmation responses\n  { pattern: /^(?:si|sí|confirmo|confirmar|ok|vale|perfecto)$/i, type: 'confirmation' },\n  { pattern: /^(?:no|cancelar|cancelo|cambiar|cambio)$/i, type: 'rejection' }\n];\n\nlet result = {\n  type: 'unknown',\n  quantity: 0,\n  product: '',\n  confidence: 0,\n  needs_clarification: false,\n  clarification_question: ''\n};\n\n// Try to match patterns\nfor (const { pattern, type } of patterns) {\n  const match = message.match(pattern);\n  if (match) {\n    result.type = type;\n    \n    if (type === 'direct_request') {\n      result.quantity = parseInt(match[1]);\n      result.product = match[2].trim();\n      result.confidence = 0.9;\n    } else if (type === 'vague_request') {\n      result.product = match[1].trim();\n      result.needs_clarification = true;\n      result.clarification_question = `¿Cuántas ${result.product} necesitas exactamente?`;\n      result.confidence = 0.6;\n    } else if (type === 'inquiry') {\n      result.product = match[1].trim();\n      result.needs_clarification = true;\n      result.clarification_question = `¿Cuántas ${result.product} quieres?`;\n      result.confidence = 0.7;\n    } else if (type === 'confirmation' || type === 'rejection') {\n      result.confidence = 0.95;\n    }\n    break;\n  }\n}\n\n// Generate order ID if we have a request\nconst orderId = result.type === 'direct_request' ? 'ORDER-' + Date.now() + '-' + phone.slice(-4) : '';\n\nreturn {\n  json: {\n    ...$input.first().json,\n    agent_analysis: result,\n    order_id: orderId,\n    status: result.type === 'direct_request' ? 'PENDING_CONFIRMATION' : 'NEEDS_CLARIFICATION'\n  }\n};"
+      },
+      "id": "intelligent-agent",
+      "name": "Intelligent Agent Analysis",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "needs-clarification",
+              "leftValue": "={{ $json.agent_analysis.needs_clarification }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-clarification",
+      "name": "Needs Clarification?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate clarification question\nconst data = $input.first().json;\nconst question = data.agent_analysis.clarification_question;\nconst clientName = data.client_name;\n\nconst message = `Hola ${clientName}! 👋\\n\\n${question}\\n\\nPor favor responde con la cantidad exacta.`;\n\nreturn {\n  json: {\n    ...data,\n    response_message: message,\n    response_type: 'CLARIFICATION_REQUEST'\n  }\n};"
+      },
+      "id": "generate-clarification",
+      "name": "Generate Clarification",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate confirmation message with intelligent suggestions\nconst data = $input.first().json;\nconst quantity = data.agent_analysis.quantity;\nconst product = data.agent_analysis.product;\nconst clientName = data.client_name;\n\n// Intelligent product suggestions based on common patterns\nconst suggestions = [];\nif (product.includes('galleta') || product.includes('cookie')) {\n  suggestions.push('10 de chocolate');\n  suggestions.push('10 de oreo');\n  suggestions.push('5 de cada sabor');\n} else if (product.includes('salsa') || product.includes('sauce')) {\n  suggestions.push('5 picante');\n  suggestions.push('5 suave');\n  suggestions.push('3 de cada tipo');\n}\n\nlet message = `Hola ${clientName}! 👋\\n\\nEntiendo que necesitas:\\n• ${quantity} ${product}\\n\\n¿Te parece bien esta cantidad?`;\n\nif (suggestions.length > 0) {\n  message += '\\n\\nTambién puedo sugerirte:\\n';\n  suggestions.forEach(suggestion => {\n    message += `• ${suggestion}\\n`;\n  });\n}\n\nmessage += '\\n¿Confirmas este pedido o prefieres cambiar algo?';\n\nreturn {\n  json: {\n    ...data,\n    response_message: message,\n    response_type: 'CONFIRMATION_REQUEST',\n    suggestions: suggestions\n  }\n};"
+      },
+      "id": "generate-confirmation",
+      "name": "Generate Confirmation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "sheetId": "={{ $json.sheet_id }}",
+        "range": "WA_Session!A:G",
+        "options": {
+          "valueInputOption": "RAW"
+        },
+        "values": "={{ [\n  $json.from_phone,\n  $json.order_id || '',\n  $json.agent_analysis.product || '',\n  $json.agent_analysis.quantity || 0,\n  $json.status,\n  $json.agent_analysis.type,\n  new Date().toISOString()\n] }}"
+      },
+      "id": "save-session",
+      "name": "Save Session to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "url": "https://graph.facebook.com/v18.0/PHONE_NUMBER_ID/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "httpHeaderAuth": "Bearer YOUR_ACCESS_TOKEN",
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.from_phone }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"{{ $json.response_message }}\"\n  }\n}"
+      },
+      "id": "send-whatsapp-response",
+      "name": "Send WhatsApp Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Handle confirmation responses\nconst data = $input.first().json;\nconst message = data.message_body.toLowerCase();\n\nlet response = '';\nlet action = 'unknown';\n\nif (message.includes('si') || message.includes('sí') || message.includes('confirmo') || message.includes('ok') || message.includes('vale') || message.includes('perfecto')) {\n  response = '¡Perfecto! ✅ Tu pedido ha sido confirmado y procesado.\\n\\nTe enviaremos una confirmación por email con los detalles.';\n  action = 'confirmed';\n} else if (message.includes('no') || message.includes('cancelar') || message.includes('cancelo')) {\n  response = 'Entendido, he cancelado tu pedido. ❌\\n\\nSi cambias de opinión, solo escríbeme de nuevo.';\n  action = 'cancelled';\n} else if (message.includes('cambiar') || message.includes('cambio')) {\n  response = '¡Por supuesto! 🔄\\n\\n¿Qué te gustaría cambiar? Puedes especificar la nueva cantidad o producto.';\n  action = 'change_requested';\n} else {\n  response = 'No entendí tu respuesta. 🤔\\n\\nPor favor responde con:\\n• \"Sí\" para confirmar\\n• \"No\" para cancelar\\n• \"Cambiar\" para modificar';\n  action = 'unclear';\n}\n\nreturn {\n  json: {\n    ...data,\n    response_message: response,\n    response_type: 'CONFIRMATION_RESPONSE',\n    action: action\n  }\n};"
+      },
+      "id": "handle-confirmation",
+      "name": "Handle Confirmation Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "sheetId": "={{ $json.sheet_id }}",
+        "range": "Movimientos!A:F",
+        "options": {
+          "valueInputOption": "RAW"
+        },
+        "values": "={{ [\n  new Date().toISOString(),\n  $json.order_id || 'N/A',\n  $json.agent_analysis.product || 'N/A',\n  $json.agent_analysis.quantity || 0,\n  'OUT',\n  $json.client_name\n] }}"
+      },
+      "id": "update-inventory",
+      "name": "Update Inventory (Confirmed Orders)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [2250, 300]
+    }
+  ],
+  "connections": {
+    "WhatsApp Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Message Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Message Data": {
+      "main": [
+        [
+          {
+            "node": "Lookup Tenant by Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Tenant by Phone": {
+      "main": [
+        [
+          {
+            "node": "Find Tenant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Tenant": {
+      "main": [
+        [
+          {
+            "node": "Intelligent Agent Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intelligent Agent Analysis": {
+      "main": [
+        [
+          {
+            "node": "Needs Clarification?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Clarification?": {
+      "main": [
+        [
+          {
+            "node": "Generate Clarification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Clarification": {
+      "main": [
+        [
+          {
+            "node": "Save Session to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Save Session to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Response": {
+      "main": [
+        [
+          {
+            "node": "Handle Confirmation Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Confirmation Response": {
+      "main": [
+        [
+          {
+            "node": "Update Inventory (Confirmed Orders)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-08T10:00:00.000Z",
+  "versionId": "1"
+}

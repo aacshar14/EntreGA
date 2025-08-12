@@ -1,0 +1,189 @@
+{
+  "name": "WhatsApp Inventory Agent - EntreGA",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/v1/wa/inbound",
+        "options": {}
+      },
+      "id": "webhook-whatsapp",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "whatsapp-inbound"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract WhatsApp message data\nconst entry = $input.first().json.entry[0];\nconst changes = entry.changes[0];\nconst value = changes.value;\nconst message = value.messages[0];\nconst contact = value.contacts[0];\n\nreturn {\n  json: {\n    from_phone: message.from,\n    message_id: message.id,\n    message_type: message.type,\n    message_body: message.text?.body || '',\n    contact_name: contact.profile?.name || 'Unknown',\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "extract-message-data",
+      "name": "Extract Message Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "sheetId": "1snac3K5KC4mBDfkf8SAyivDUueKyo-lADMfWG5ByHhA",
+        "range": "Tenants_Contacts!A2:D",
+        "options": {}
+      },
+      "id": "lookup-tenant",
+      "name": "Lookup Tenant by Phone",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Find tenant by phone number\nconst phone = $input.first().json.from_phone;\nconst contacts = $input.all();\n\nlet tenant = null;\nfor (const contact of contacts) {\n  if (contact.json.phone === phone && contact.json.active === 'true') {\n    tenant = {\n      tenant_id: contact.json.tenant,\n      client_name: contact.json.client_name,\n      sheet_id: contact.json.tenant === 'EC001' ? '1snac3K5KC4mBDfkf8SAyivDUueKyo-lADMfWG5ByHhA' : '1QrXgIT4l2FdNQssWvegwNyOzRWqeQyCu-YkYfWN4v7g'\n    };\n    break;\n  }\n}\n\nif (!tenant) {\n  throw new Error('Phone not found in contacts or inactive');\n}\n\nreturn {\n  json: {\n    ...$input.first().json,\n    ...tenant\n  }\n};"
+      },
+      "id": "find-tenant",
+      "name": "Find Tenant",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse inventory request using regex\nconst message = $input.first().json.message_body.toLowerCase();\nconst phone = $input.first().json.from_phone;\n\n// Simple regex patterns for common requests\nconst patterns = [\n  /necesito\\s+(\\d+)\\s+(.+)/i,\n  /quiero\\s+(\\d+)\\s+(.+)/i,\n  /dame\\s+(\\d+)\\s+(.+)/i\n];\n\nlet quantity = 0;\nlet product = '';\n\nfor (const pattern of patterns) {\n  const match = message.match(pattern);\n  if (match) {\n    quantity = parseInt(match[1]);\n    product = match[2].trim();\n    break;\n  }\n}\n\nif (quantity === 0 || !product) {\n  throw new Error('Could not parse inventory request');\n}\n\n// Generate order ID\nconst orderId = 'ORDER-' + Date.now() + '-' + phone.slice(-4);\n\nreturn {\n  json: {\n    ...$input.first().json,\n    parsed_quantity: quantity,\n    parsed_product: product,\n    order_id: orderId,\n    status: 'PENDING_CONFIRMATION'\n  }\n};"
+      },
+      "id": "parse-request",
+      "name": "Parse Request",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "sheetId": "={{ $json.sheet_id }}",
+        "range": "WA_Session!A:F",
+        "options": {
+          "valueInputOption": "RAW"
+        },
+        "values": "={{ [\n  $json.from_phone,\n  $json.order_id,\n  $json.parsed_product,\n  $json.parsed_quantity,\n  $json.status,\n  new Date().toISOString()\n] }}"
+      },
+      "id": "save-session",
+      "name": "Save Session to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate confirmation message\nconst data = $input.first().json;\nconst quantity = data.parsed_quantity;\nconst product = data.parsed_product;\nconst clientName = data.client_name;\n\n// Create confirmation message\nconst message = 'Hola ' + clientName + '!\\n\\nEntiendo que necesitas:\\n• ' + quantity + ' ' + product + '\\n\\n¿Confirmas este pedido?';\n\nreturn {\n  json: {\n    ...data,\n    confirmation_message: message,\n    response_type: 'CONFIRMATION_REQUEST'\n  }\n};"
+      },
+      "id": "generate-confirmation",
+      "name": "Generate Confirmation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "url": "https://graph.facebook.com/v18.0/PHONE_NUMBER_ID/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "httpHeaderAuth": "Bearer YOUR_ACCESS_TOKEN",
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.from_phone }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"{{ $json.confirmation_message }}\"\n  }\n}"
+      },
+      "id": "send-whatsapp-response",
+      "name": "Send WhatsApp Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    }
+  ],
+  "connections": {
+    "WhatsApp Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Message Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Message Data": {
+      "main": [
+        [
+          {
+            "node": "Lookup Tenant by Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Tenant by Phone": {
+      "main": [
+        [
+          {
+            "node": "Find Tenant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Tenant": {
+      "main": [
+        [
+          {
+            "node": "Parse Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Request": {
+      "main": [
+        [
+          {
+            "node": "Save Session to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Generate Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-08T10:00:00.000Z",
+  "versionId": "1"
+}

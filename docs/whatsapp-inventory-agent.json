@@ -1,0 +1,304 @@
+{
+  "name": "WhatsApp Inventory Agent - EntreGA",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/v1/wa/inbound",
+        "options": {}
+      },
+      "id": "webhook-whatsapp",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "whatsapp-inbound"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "message-type",
+              "leftValue": "={{ $json.entry[0].changes[0].value.messages[0].type }}",
+              "rightValue": "text",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-message-type",
+      "name": "Check Message Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract WhatsApp message data\nconst entry = $input.first().json.entry[0];\nconst changes = entry.changes[0];\nconst value = changes.value;\nconst message = value.messages[0];\nconst contact = value.contacts[0];\n\nreturn {\n  json: {\n    from_phone: message.from,\n    message_id: message.id,\n    message_type: message.type,\n    message_body: message.text?.body || '',\n    contact_name: contact.profile?.name || 'Unknown',\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "extract-message-data",
+      "name": "Extract Message Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "sheetId": "1snac3K5KC4mBDfkf8SAyivDUueKyo-lADMfWG5ByHhA",
+        "range": "Tenants_Contacts!A2:D",
+        "options": {}
+      },
+      "id": "lookup-tenant",
+      "name": "Lookup Tenant by Phone",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google-sheets-credentials",
+          "name": "Google Sheets Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Find tenant by phone number\nconst phone = $('Extract Message Data').first().json.from_phone;\nconst contacts = $input.all();\n\nlet tenant = null;\nfor (const contact of contacts) {\n  if (contact.json.phone === phone && contact.json.active === 'true') {\n    tenant = {\n      tenant_id: contact.json.tenant,\n      client_name: contact.json.client_name,\n      sheet_id: contact.json.tenant === 'EC001' ? '1snac3K5KC4mBDfkf8SAyivDUueKyo-lADMfWG5ByHhA' : '1QrXgIT4l2FdNQssWvegwNyOzRWqeQyCu-YkYfWN4v7g'\n    };\n    break;\n  }\n}\n\nif (!tenant) {\n  throw new Error(`Phone ${phone} not found in contacts or inactive`);\n}\n\nreturn {\n  json: {\n    ...$('Extract Message Data').first().json,\n    ...tenant\n  }\n};"
+      },
+      "id": "find-tenant",
+      "name": "Find Tenant",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse inventory request using regex\nconst message = $input.first().json.message_body.toLowerCase();\nconst phone = $input.first().json.from_phone;\n\n// Simple regex patterns for common requests\nconst patterns = [\n  /necesito\\s+(\\d+)\\s+(.+)/i,\n  /quiero\\s+(\\d+)\\s+(.+)/i,\n  /dame\\s+(\\d+)\\s+(.+)/i\n];\n\nlet quantity = 0;\nlet product = '';\n\nfor (const pattern of patterns) {\n  const match = message.match(pattern);\n  if (match) {\n    quantity = parseInt(match[1]);\n    product = match[2].trim();\n    break;\n  }\n}\n\nif (quantity === 0 || !product) {\n  throw new Error('Could not parse inventory request');\n}\n\n// Generate order ID\nconst orderId = `ORDER-${Date.now()}-${phone.slice(-4)}`;\n\nreturn {\n  json: {\n    ...$input.first().json,\n    parsed_quantity: quantity,\n    parsed_product: product,\n    order_id: orderId,\n    status: 'PENDING_CONFIRMATION'\n  }\n};"
+      },
+      "id": "parse-request",
+      "name": "Parse Request",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "sheetId": "={{ $json.sheet_id }}",
+        "range": "WA_Session!A:F",
+        "options": {}
+      },
+      "id": "check-existing-session",
+      "name": "Check Existing Session",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [1450, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google-sheets-credentials",
+          "name": "Google Sheets Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Check if there is an existing session for this phone\nconst phone = $input.first().json.from_phone;\nconst sessions = $('Check Existing Session').all();\n\nlet existingSession = null;\nfor (const session of sessions) {\n  if (session.json.phone === phone && session.json.status === 'PENDING_CONFIRMATION') {\n    existingSession = session.json;\n    break;\n  }\n}\n\nreturn {\n  json: {\n    ...$input.first().json,\n    existing_session: existingSession\n  }\n};"
+      },
+      "id": "check-session-status",
+      "name": "Check Session Status",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate confirmation message and buttons\nconst data = $input.first().json;\nconst quantity = data.parsed_quantity;\nconst product = data.parsed_product;\nconst clientName = data.client_name;\n\n// Create confirmation message\nconst message = `Hola ${clientName}!\\n\\nEntiendo que necesitas:\\n• ${quantity} ${product}\\n\\n¿Confirmas este pedido?`;\n\n// WhatsApp buttons (simulated for now)\nconst buttons = [\n  { id: 'confirm', text: 'Confirmar' },\n  { id: 'change', text: 'Cambiar' },\n  { id: 'cancel', text: 'Cancelar' }\n];\n\nreturn {\n  json: {\n    ...data,\n    confirmation_message: message,\n    buttons: buttons,\n    response_type: 'CONFIRMATION_REQUEST'\n  }\n};"
+      },
+      "id": "generate-confirmation",
+      "name": "Generate Confirmation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "sheetId": "={{ $json.sheet_id }}",
+        "range": "WA_Session!A:F",
+        "options": {
+          "valueInputOption": "RAW"
+        },
+        "values": "={{ [\n  $json.from_phone,\n  $json.order_id,\n  $json.parsed_product,\n  $json.parsed_quantity,\n  $json.status,\n  new Date().toISOString()\n] }}"
+      },
+      "id": "save-session",
+      "name": "Save Session to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [2050, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google-sheets-credentials",
+          "name": "Google Sheets Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "url": "https://graph.facebook.com/v18.0/{{ $json.tenant_id === 'EC001' ? 'PHONE_NUMBER_ID_EC001' : 'PHONE_NUMBER_ID_EC002' }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "httpHeaderAuth": "Bearer {{ $('WhatsApp Access Token').json.access_token }}",
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.from_phone }}\",\n  \"type\": \"interactive\",\n  \"interactive\": {\n    \"type\": \"button\",\n    \"body\": {\n      \"text\": \"{{ $json.confirmation_message }}\"\n    },\n    \"action\": {\n      \"buttons\": [\n        {\n          \"type\": \"reply\",\n          \"reply\": {\n            \"id\": \"confirm\",\n            \"title\": \"Confirmar\"\n          }\n        },\n        {\n          \"type\": \"reply\",\n          \"reply\": {\n            \"id\": \"change\",\n            \"title\": \"Cambiar\"\n          }\n        },\n        {\n          \"type\": \"reply\",\n          \"reply\": {\n            \"id\": \"cancel\",\n            \"title\": \"Cancelar\"\n          }\n        }\n      ]\n    }\n  }\n}"
+      },
+      "id": "send-whatsapp-response",
+      "name": "Send WhatsApp Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [2250, 300],
+      "credentials": {
+        "genericCredentialType": {
+          "id": "whatsapp-access-token",
+          "name": "WhatsApp Access Token"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "WhatsApp Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Message Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Message Type": {
+      "main": [
+        [
+          {
+            "node": "Extract Message Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Message Data": {
+      "main": [
+        [
+          {
+            "node": "Lookup Tenant by Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Tenant by Phone": {
+      "main": [
+        [
+          {
+            "node": "Find Tenant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Tenant": {
+      "main": [
+        [
+          {
+            "node": "Parse Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Request": {
+      "main": [
+        [
+          {
+            "node": "Check Existing Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Existing Session": {
+      "main": [
+        [
+          {
+            "node": "Check Session Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Session Status": {
+      "main": [
+        [
+          {
+            "node": "Generate Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Save Session to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-01-08T10:00:00.000Z",
+      "updatedAt": "2025-01-08T10:00:00.000Z",
+      "id": "whatsapp-inventory",
+      "name": "WhatsApp Inventory"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-08T10:00:00.000Z",
+  "versionId": "1"
+}
