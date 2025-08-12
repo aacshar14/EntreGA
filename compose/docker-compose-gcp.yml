@@ -27,9 +27,9 @@ services:
       - N8N_SSL_CERT=/etc/ssl/certs/fullchain.pem
     volumes:
       - n8n_data:/home/node/.n8n
-      # Mount SSL certificates
-      - /etc/letsencrypt/live/n8ne01.entrega.space/privkey.pem:/etc/ssl/private/privkey.pem:ro
-      - /etc/letsencrypt/live/n8ne01.entrega.space/fullchain.pem:/etc/ssl/certs/fullchain.pem:ro
+      # Mount SSL certificates (real paths)
+      - /etc/letsencrypt/archive/n8ne01.entrega.space/privkey1.pem:/etc/ssl/private/privkey.pem:ro
+      - /etc/letsencrypt/archive/n8ne01.entrega.space/fullchain1.pem:/etc/ssl/certs/fullchain.pem:ro
     networks:
       - entrega_network
 

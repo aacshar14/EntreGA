@@ -3,21 +3,23 @@
 # Script para configurar SSL y HTTPS para n8n
 echo "🚀 Configurando SSL y HTTPS para n8n..."
 
-# Verificar que los certificados SSL existan
+# Verificar que los certificados SSL existan (rutas reales)
 echo "🔒 Verificando certificados SSL..."
-if [ ! -f "/etc/letsencrypt/live/n8ne01.entrega.space/privkey.pem" ]; then
+if [ ! -f "/etc/letsencrypt/archive/n8ne01.entrega.space/privkey1.pem" ]; then
     echo "❌ Error: No se encontró el certificado privado"
+    echo "Ruta esperada: /etc/letsencrypt/archive/n8ne01.entrega.space/privkey1.pem"
     echo "Ejecuta: sudo certbot --nginx -d n8ne01.entrega.space"
     exit 1
 fi
 
-if [ ! -f "/etc/letsencrypt/live/n8ne01.entrega.space/fullchain.pem" ]; then
+if [ ! -f "/etc/letsencrypt/archive/n8ne01.entrega.space/fullchain1.pem" ]; then
     echo "❌ Error: No se encontró el certificado público"
+    echo "Ruta esperada: /etc/letsencrypt/archive/n8ne01.entrega.space/fullchain1.pem"
     echo "Ejecuta: sudo certbot --nginx -d n8ne01.entrega.space"
     exit 1
 fi
 
-echo "✅ Certificados SSL encontrados"
+echo "✅ Certificados SSL encontrados en rutas reales"
 
 # Detener n8n actual
 echo "📦 Deteniendo n8n actual..."
@@ -39,8 +41,8 @@ fi
 
 # Verificar permisos de certificados
 echo "🔐 Verificando permisos de certificados..."
-sudo chmod 644 /etc/letsencrypt/live/n8ne01.entrega.space/fullchain.pem
-sudo chmod 600 /etc/letsencrypt/live/n8ne01.entrega.space/privkey.pem
+sudo chmod 644 /etc/letsencrypt/archive/n8ne01.entrega.space/fullchain1.pem
+sudo chmod 600 /etc/letsencrypt/archive/n8ne01.entrega.space/privkey1.pem
 
 # Levantar n8n con HTTPS y certificados SSL
 echo "🚀 Levantando n8n con HTTPS y certificados SSL..."
@@ -64,4 +66,4 @@ fi
 echo "🎉 ¡Configuración HTTPS completada!"
 echo "🌐 n8n ahora está disponible en: https://n8ne01.entrega.space:5678"
 echo "🔗 Webhook URL: https://n8ne01.entrega.space:5678/webhook/..."
-echo "🔒 SSL certificados montados correctamente"
+echo "🔒 SSL certificados montados correctamente desde rutas reales"
