@@ -1,0 +1,43 @@
+{
+  "name": "WA-Test-Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/v1/wa/test",
+        "options": {}
+      },
+      "id": "webhook-test",
+      "name": "Test Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "test-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "return { json: { message: 'Webhook funcionando correctamente!', timestamp: new Date().toISOString(), data: $input.first().json } };"
+      },
+      "id": "test-function",
+      "name": "Test Function",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    }
+  ],
+  "connections": {
+    "Test Webhook": {
+      "main": [
+        [
+          {
+            "node": "Test Function",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

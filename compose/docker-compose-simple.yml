@@ -10,41 +10,21 @@ services:
       - N8N_HOST=0.0.0.0
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://n8ne01.entrega.space:5678
-      - N8N_EDITOR_BASE_URL=http://n8ne01.entrega.space:5678
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
       - N8N_BASIC_AUTH_PASSWORD=EntreGA2025!
       - N8N_DIAGNOSTICS_ENABLED=false
       - N8N_ENCRYPTION_KEY=EntreGA2025!EncryptionKey32Chars
-      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
-      - N8N_RUNNERS_ENABLED=true
-      - N8N_SECURE_COOKIE=false
       - N8N_DATABASE_TYPE=sqlite
       - N8N_DATABASE_SQLITE_DATABASE=/home/node/.n8n/database.sqlite
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
-      - entrega_network
-
-  entrega-backend:
-    build: ../backend
-    restart: unless-stopped
-    ports:
-      - 8000:8000
-    environment:
-      - DATABASE_URL=sqlite:///./entrega.db
-    volumes:
-      - entrega_data:/app
-    networks:
-      - entrega_network
-    depends_on:
-      - n8n
+      - n8n_network
 
 volumes:
   n8n_data:
-  entrega_data:
 
 networks:
-  entrega_network:
+  n8n_network:
     driver: bridge
