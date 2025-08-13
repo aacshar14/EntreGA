@@ -13,7 +13,7 @@ docker compose down
 
 # Remover imágenes (opcional - descomenta si quieres eliminar imágenes)
 # echo "🖼️ Removiendo imágenes..."
-# docker rmi n8nio/n8n:1.106.3
+# docker rmi n8nio/n8n:latest
 
 echo "✅ Limpieza completada"
 echo "💡 Para volver a ejecutar: ./setup.sh"
