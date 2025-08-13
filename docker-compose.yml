@@ -33,23 +33,8 @@ services:
     networks:
       - entrega_network
 
-  entrega-backend:
-    build: ../backend
-    restart: unless-stopped
-    ports:
-      - 8000:8000
-    environment:
-      - DATABASE_URL=sqlite:///./entrega.db
-    volumes:
-      - entrega_data:/app
-    networks:
-      - entrega_network
-    depends_on:
-      - n8n
-
 volumes:
   n8n_data:
-  entrega_data:
 
 networks:
   entrega_network:
