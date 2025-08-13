@@ -5,11 +5,11 @@ services:
     image: n8nio/n8n:latest
     restart: unless-stopped
     ports:
-      - "443:5678"
+      - 5678:5678  # Quitamos 443 del host
     environment:
       - N8N_HOST=n8ne01.entrega.space
       - N8N_PORT=5678
-      - N8N_PROTOCOL=https
+      - N8N_PROTOCOL=http
       - WEBHOOK_URL=https://n8ne01.entrega.space
       - N8N_EDITOR_BASE_URL=https://n8ne01.entrega.space
       - N8N_SECURE_COOKIE=true
@@ -21,13 +21,15 @@ services:
       - N8N_RUNNERS_ENABLED=true
       - N8N_DATABASE_TYPE=sqlite
       - N8N_DATABASE_SQLITE_DATABASE=/home/node/.n8n/database.sqlite
-      # Rutas TLS dentro del contenedor
-      - N8N_SSL_CERT=/etc/letsencrypt/live/n8ne01.entrega.space/fullchain.pem
-      - N8N_SSL_KEY=/etc/letsencrypt/live/n8ne01.entrega.space/privkey.pem
     volumes:
       - n8n_data:/home/node/.n8n
-      # Monta tu copia segura EN LA MISMA RUTA que espera n8n
-      - /opt/n8n-certs:/etc/letsencrypt/live/n8ne01.entrega.space:ro
+    networks: [entrega_network]
+
+  entrega-agent:
+    build: ./iaagent
+    restart: always
+    ports:
+      - 8000:8000
     networks: [entrega_network]
 
 volumes:

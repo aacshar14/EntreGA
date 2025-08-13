@@ -1,46 +1,23 @@
 #!/bin/bash
 
-# Script para configurar y ejecutar n8n con SSL
-echo "🚀 Configurando n8n con SSL para EntreGA..."
-
-# Verificar que los certificados SSL existan
-echo "🔒 Verificando certificados SSL..."
-if [ ! -f "/etc/letsencrypt/live/n8ne01.entrega.space/privkey.pem" ]; then
-    echo "❌ Error: No se encontró el certificado privado"
-    echo "Ruta esperada: /etc/letsencrypt/live/n8ne01.entrega.space/privkey.pem"
-    echo "Ejecuta: sudo certbot --nginx -d n8ne01.entrega.space"
-    exit 1
-fi
-
-if [ ! -f "/etc/letsencrypt/live/n8ne01.entrega.space/fullchain.pem" ]; then
-    echo "❌ Error: No se encontró el certificado público"
-    echo "Ruta esperada: /etc/letsencrypt/live/n8ne01.entrega.space/fullchain.pem"
-    echo "Ejecuta: sudo certbot --nginx -d n8ne01.entrega.space"
-    exit 1
-fi
-
-echo "✅ Certificados SSL encontrados en Let's Encrypt"
+# Script para configurar y ejecutar n8n
+echo "🚀 Configurando n8n para EntreGA..."
 
 # Copiar archivo de configuración
 echo "📝 Copiando configuración..."
 cp env.txt .env
 
-# Verificar configuración HTTPS
-echo "🔍 Verificando configuración HTTPS..."
-if grep -q "N8N_PROTOCOL=https" .env; then
-    echo "✅ Configuración HTTPS encontrada"
+# Verificar configuración
+echo "🔍 Verificando configuración..."
+if grep -q "N8N_PROTOCOL=http" .env; then
+    echo "✅ Configuración HTTP encontrada"
 else
-    echo "❌ Error: .env no tiene configuración HTTPS"
+    echo "❌ Error: .env no tiene configuración HTTP"
     exit 1
 fi
 
-# Verificar permisos de certificados
-echo "🔐 Verificando permisos de certificados..."
-sudo chmod 644 /etc/letsencrypt/live/n8ne01.entrega.space/fullchain.pem
-sudo chmod 600 /etc/letsencrypt/live/n8ne01.entrega.space/privkey.pem
-
-# Levantar n8n con HTTPS
-echo "🚀 Levantando n8n con HTTPS..."
+# Levantar n8n
+echo "🚀 Levantando n8n..."
 docker compose up -d
 
 # Esperar inicialización
@@ -65,31 +42,30 @@ else
     echo "⚠️ n8n puede no estar completamente listo, continuando..."
 fi
 
-# Verificar funcionamiento HTTPS
-echo "✅ Verificando que n8n responda por HTTPS..."
-echo "🔍 Probando conexión a https://n8ne01.entrega.space..."
+# Verificar funcionamiento HTTP
+echo "✅ Verificando que n8n responda por HTTP..."
+echo "🔍 Probando conexión a http://n8ne01.entrega.space:5678..."
 
 # Intentar múltiples métodos de verificación
-if curl -k -s --connect-timeout 10 https://n8ne01.entrega.space | grep -q "n8n"; then
-    echo "🎉 ¡n8n está funcionando con HTTPS!"
-elif curl -k -s --connect-timeout 10 https://n8ne01.entrega.space | grep -q "html"; then
-    echo "✅ n8n responde por HTTPS (respuesta HTML detectada)"
-elif curl -k -s --connect-timeout 10 https://n8ne01.entrega.space > /dev/null; then
-    echo "✅ n8n responde por HTTPS (conexión exitosa)"
+if curl -s --connect-timeout 10 http://n8ne01.entrega.space:5678 | grep -q "n8n"; then
+    echo "🎉 ¡n8n está funcionando por HTTP!"
+elif curl -s --connect-timeout 10 http://n8ne01.entrega.space:5678 | grep -q "html"; then
+    echo "✅ n8n responde por HTTP (respuesta HTML detectada)"
+elif curl -s --connect-timeout 10 http://n8ne01.entrega.space:5678 > /dev/null; then
+    echo "✅ n8n responde por HTTP (conexión exitosa)"
 else
-    echo "⚠️ Advertencia: n8n puede no estar respondiendo por HTTPS"
+    echo "⚠️ Advertencia: n8n puede no estar respondiendo por HTTP"
     echo "🔍 Verificando logs para más detalles..."
     docker compose logs n8n --tail 20
     echo "💡 n8n puede estar funcionando pero tardando en responder"
 fi
 
 echo "🎉 ¡Configuración completada!"
-echo "🌐 n8n disponible en: https://n8ne01.entrega.space"
-echo "🔗 Webhook URL: https://n8ne01.entrega.space/webhook/..."
-echo "🔒 SSL certificados montados correctamente desde Let's Encrypt"
+echo "🌐 n8n disponible en: http://n8ne01.entrega.space:5678"
+echo "🤖 Agente IA disponible en: http://n8ne01.entrega.space:8000"
+echo "🔗 Webhook URL: http://n8ne01.entrega.space:5678/webhook/..."
 echo ""
 echo "💡 Si tienes problemas, verifica:"
-echo "   - Certificados en /etc/letsencrypt/live/n8ne01.entrega.space/"
-echo "   - Firewall permitiendo puerto 443"
+echo "   - Firewall permitiendo puertos 5678 y 8000"
 echo "   - DNS apuntando a tu servidor"
-echo "   - Certbot configurado correctamente"
+echo "   - Directorio ./iaagent existe para el agente"

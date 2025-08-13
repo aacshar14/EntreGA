@@ -1,14 +1,14 @@
 
-# EntreGA - n8n Workflow Automation
+# EntreGA - n8n Workflow Automation + IA Agent
 
-Sistema de automatización de workflows con n8n para EntreGA, configurado con SSL y certificados personalizados.
+Sistema de automatización de workflows con n8n para EntreGA, incluyendo un agente de IA integrado.
 
 ## 🚀 Configuración Rápida
 
 ### Prerrequisitos
 - Docker y Docker Compose instalados
-- Certificados SSL en `/opt/n8n-certs/`
 - Dominio configurado y apuntando al servidor
+- Directorio `./iaagent` con el código del agente de IA
 
 ### Instalación
 
@@ -18,9 +18,9 @@ Sistema de automatización de workflows con n8n para EntreGA, configurado con SS
    cd EntreGA
    ```
 
-2. **Verificar certificados SSL:**
+2. **Verificar que existe el directorio del agente:**
    ```bash
-   sudo ls -la /opt/n8n-certs/
+   ls -la ./iaagent
    ```
 
 3. **Ejecutar setup:**
@@ -31,24 +31,24 @@ Sistema de automatización de workflows con n8n para EntreGA, configurado con SS
 
 ### Uso
 
-- **Iniciar n8n:** `./setup.sh`
-- **Detener n8n:** `./cleanup.sh`
-- **Ver logs:** `docker compose logs -f n8n`
+- **Iniciar servicios:** `./setup.sh`
+- **Detener servicios:** `./cleanup.sh`
+- **Ver logs n8n:** `docker compose logs -f n8n`
+- **Ver logs agente:** `docker compose logs -f entrega-agent`
 
-## 🔒 Configuración SSL
+## 🌐 Configuración de Servicios
 
-El sistema está configurado para usar HTTPS con certificados personalizados:
-
-- **Puerto:** 443 (HTTPS estándar)
-- **Protocolo:** HTTPS
-- **Dominio:** n8ne01.entrega.space
-- **Certificados:** Montados desde `/opt/n8n-certs/`
-
-## 🌐 Acceso
-
-- **URL:** https://n8ne01.entrega.space
+### n8n (Puerto 5678)
+- **Protocolo:** HTTP
+- **Puerto:** 5678:5678
+- **URL:** http://n8ne01.entrega.space:5678
 - **Usuario:** admin
 - **Contraseña:** EntreGA2025!
+
+### Agente IA (Puerto 8000)
+- **Puerto:** 8000:8000
+- **URL:** http://n8ne01.entrega.space:8000
+- **Tipo:** Servicio personalizado construido desde `./iaagent`
 
 ## 📁 Estructura del Proyecto
 
@@ -58,6 +58,7 @@ EntreGA/
 ├── env.txt                 # Variables de entorno
 ├── setup.sh               # Script de instalación
 ├── cleanup.sh             # Script de limpieza
+├── iaagent/               # Código del agente de IA
 └── README.md              # Este archivo
 ```
 
@@ -65,34 +66,37 @@ EntreGA/
 
 Las principales variables están en `env.txt`:
 
-- `N8N_PROTOCOL=https`
+- `N8N_PROTOCOL=http`
 - `WEBHOOK_URL=https://n8ne01.entrega.space`
 - `N8N_BASIC_AUTH_ACTIVE=true`
 - `N8N_ENCRYPTION_KEY=EntreGA2025!EncryptionKey32Chars`
 
 ## 🚨 Solución de Problemas
 
-### Certificados SSL no encontrados
-```bash
-# Verificar que existan en /opt/n8n-certs/
-sudo ls -la /opt/n8n-certs/
-```
-
-### Permisos de certificados
-```bash
-sudo chmod 644 /opt/n8n-certs/fullchain.pem
-sudo chmod 600 /opt/n8n-certs/privkey.pem
-```
-
 ### Verificar funcionamiento
 ```bash
-curl -k https://n8ne01.entrega.space
+# n8n
+curl http://n8ne01.entrega.space:5678
+
+# Agente IA
+curl http://n8ne01.entrega.space:8000
+```
+
+### Verificar logs
+```bash
+# Logs de n8n
+docker compose logs n8n --tail 20
+
+# Logs del agente
+docker compose logs entrega-agent --tail 20
 ```
 
 ## 📝 Notas
 
 - Los datos de n8n se almacenan en un volumen Docker persistente
 - El sistema se reinicia automáticamente en caso de fallo
-- Los certificados SSL deben estar en `/opt/n8n-certs/`
-- Puerto 443 del host se mapea al puerto 5678 del contenedor
+- El agente IA se construye desde el código fuente en `./iaagent`
+- Ambos servicios comparten la red `entrega_network`
+- Puerto 5678 del host se mapea al puerto 5678 del contenedor n8n
+- Puerto 8000 del host se mapea al puerto 8000 del contenedor del agente
 
