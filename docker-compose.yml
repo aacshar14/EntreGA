@@ -4,9 +4,8 @@ services:
   n8n:
     image: n8nio/n8n:latest
     restart: unless-stopped
-    # (sin user: "0:0") -> corre como uid 1000 (node)
     ports:
-      - 443:5678
+      - "443:5678"
     environment:
       - N8N_HOST=n8ne01.entrega.space
       - N8N_PORT=5678
@@ -22,12 +21,13 @@ services:
       - N8N_RUNNERS_ENABLED=true
       - N8N_DATABASE_TYPE=sqlite
       - N8N_DATABASE_SQLITE_DATABASE=/home/node/.n8n/database.sqlite
-      - N8N_SSL_CERT=/certs/fullchain.pem
-      - N8N_SSL_KEY=/certs/privkey.pem
+      # Rutas TLS dentro del contenedor
+      - N8N_SSL_CERT=/etc/letsencrypt/live/n8ne01.entrega.space/fullchain.pem
+      - N8N_SSL_KEY=/etc/letsencrypt/live/n8ne01.entrega.space/privkey.pem
     volumes:
       - n8n_data:/home/node/.n8n
-      - /etc/letsencrypt/live/n8ne01.entrega.space/fullchain.pem:/certs/fullchain.pem:ro
-      - /etc/letsencrypt/live/n8ne01.entrega.space/privkey.pem:/certs/privkey.pem:ro
+      # Monta tu copia segura EN LA MISMA RUTA que espera n8n
+      - /opt/n8n-certs:/etc/letsencrypt/live/n8ne01.entrega.space:ro
     networks: [entrega_network]
 
 volumes:
