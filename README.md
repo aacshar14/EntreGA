@@ -1,13 +1,13 @@
 
 # EntreGA - n8n Workflow Automation
 
-Sistema de automatización de workflows con n8n para EntreGA, configurado con SSL y certificados Let's Encrypt.
+Sistema de automatización de workflows con n8n para EntreGA, configurado con SSL y certificados personalizados.
 
 ## 🚀 Configuración Rápida
 
 ### Prerrequisitos
 - Docker y Docker Compose instalados
-- Certificados SSL de Let's Encrypt para `n8ne01.entrega.space`
+- Certificados SSL en `/opt/n8n-certs/`
 - Dominio configurado y apuntando al servidor
 
 ### Instalación
@@ -20,7 +20,7 @@ Sistema de automatización de workflows con n8n para EntreGA, configurado con SS
 
 2. **Verificar certificados SSL:**
    ```bash
-   sudo ls -la /etc/letsencrypt/archive/n8ne01.entrega.space/
+   sudo ls -la /opt/n8n-certs/
    ```
 
 3. **Ejecutar setup:**
@@ -37,16 +37,16 @@ Sistema de automatización de workflows con n8n para EntreGA, configurado con SS
 
 ## 🔒 Configuración SSL
 
-El sistema está configurado para usar HTTPS con certificados Let's Encrypt:
+El sistema está configurado para usar HTTPS con certificados personalizados:
 
-- **Puerto:** 5678
+- **Puerto:** 443 (HTTPS estándar)
 - **Protocolo:** HTTPS
 - **Dominio:** n8ne01.entrega.space
-- **Certificados:** Montados desde `/etc/letsencrypt/archive/`
+- **Certificados:** Montados desde `/opt/n8n-certs/`
 
 ## 🌐 Acceso
 
-- **URL:** https://n8ne01.entrega.space:5678
+- **URL:** https://n8ne01.entrega.space
 - **Usuario:** admin
 - **Contraseña:** EntreGA2025!
 
@@ -66,7 +66,7 @@ EntreGA/
 Las principales variables están en `env.txt`:
 
 - `N8N_PROTOCOL=https`
-- `WEBHOOK_URL=https://n8ne01.entrega.space:5678`
+- `WEBHOOK_URL=https://n8ne01.entrega.space`
 - `N8N_BASIC_AUTH_ACTIVE=true`
 - `N8N_ENCRYPTION_KEY=EntreGA2025!EncryptionKey32Chars`
 
@@ -74,23 +74,25 @@ Las principales variables están en `env.txt`:
 
 ### Certificados SSL no encontrados
 ```bash
-sudo certbot --nginx -d n8ne01.entrega.space
+# Verificar que existan en /opt/n8n-certs/
+sudo ls -la /opt/n8n-certs/
 ```
 
 ### Permisos de certificados
 ```bash
-sudo chmod 644 /etc/letsencrypt/archive/n8ne01.entrega.space/fullchain1.pem
-sudo chmod 600 /etc/letsencrypt/archive/n8ne01.entrega.space/privkey1.pem
+sudo chmod 644 /opt/n8n-certs/fullchain.pem
+sudo chmod 600 /opt/n8n-certs/privkey.pem
 ```
 
 ### Verificar funcionamiento
 ```bash
-curl -k https://n8ne01.entrega.space:5678
+curl -k https://n8ne01.entrega.space
 ```
 
 ## 📝 Notas
 
 - Los datos de n8n se almacenan en un volumen Docker persistente
 - El sistema se reinicia automáticamente en caso de fallo
-- Los certificados SSL se renuevan automáticamente con Let's Encrypt
+- Los certificados SSL deben estar en `/opt/n8n-certs/`
+- Puerto 443 del host se mapea al puerto 5678 del contenedor
 

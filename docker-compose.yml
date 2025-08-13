@@ -5,13 +5,13 @@ services:
     image: n8nio/n8n:1.106.3
     restart: unless-stopped
     ports:
-      - 5678:5678
+      - 443:5678
     environment:
       - N8N_HOST=0.0.0.0
       - N8N_PORT=5678
       - N8N_PROTOCOL=https
-      - WEBHOOK_URL=https://n8ne01.entrega.space:5678
-      - N8N_EDITOR_BASE_URL=https://n8ne01.entrega.space:5678
+      - WEBHOOK_URL=https://n8ne01.entrega.space
+      - N8N_EDITOR_BASE_URL=https://n8ne01.entrega.space
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
       - N8N_BASIC_AUTH_PASSWORD=EntreGA2025!
@@ -27,9 +27,9 @@ services:
       - N8N_SSL_CERT=/etc/ssl/certs/fullchain.pem
     volumes:
       - n8n_data:/home/node/.n8n
-      # Mount SSL certificates (real paths)
-      - /etc/letsencrypt/archive/n8ne01.entrega.space/privkey1.pem:/etc/ssl/private/privkey.pem:ro
-      - /etc/letsencrypt/archive/n8ne01.entrega.space/fullchain1.pem:/etc/ssl/certs/fullchain.pem:ro
+      # Mount SSL certificates from /opt/n8n-certs
+      - /opt/n8n-certs/privkey.pem:/etc/ssl/private/privkey.pem:ro
+      - /opt/n8n-certs/fullchain.pem:/etc/ssl/certs/fullchain.pem:ro
     networks:
       - entrega_network
 

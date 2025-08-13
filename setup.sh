@@ -5,21 +5,21 @@ echo "🚀 Configurando n8n con SSL para EntreGA..."
 
 # Verificar que los certificados SSL existan
 echo "🔒 Verificando certificados SSL..."
-if [ ! -f "/etc/letsencrypt/archive/n8ne01.entrega.space/privkey1.pem" ]; then
+if [ ! -f "/opt/n8n-certs/privkey.pem" ]; then
     echo "❌ Error: No se encontró el certificado privado"
-    echo "Ruta esperada: /etc/letsencrypt/archive/n8ne01.entrega.space/privkey1.pem"
-    echo "Ejecuta: sudo certbot --nginx -d n8ne01.entrega.space"
+    echo "Ruta esperada: /opt/n8n-certs/privkey.pem"
+    echo "Asegúrate de que los certificados estén en /opt/n8n-certs/"
     exit 1
 fi
 
-if [ ! -f "/etc/letsencrypt/archive/n8ne01.entrega.space/fullchain1.pem" ]; then
+if [ ! -f "/opt/n8n-certs/fullchain.pem" ]; then
     echo "❌ Error: No se encontró el certificado público"
-    echo "Ruta esperada: /etc/letsencrypt/archive/n8ne01.entrega.space/fullchain1.pem"
-    echo "Ejecuta: sudo certbot --nginx -d n8ne01.entrega.space"
+    echo "Ruta esperada: /opt/n8n-certs/fullchain.pem"
+    echo "Asegúrate de que los certificados estén en /opt/n8n-certs/"
     exit 1
 fi
 
-echo "✅ Certificados SSL encontrados"
+echo "✅ Certificados SSL encontrados en /opt/n8n-certs"
 
 # Copiar archivo de configuración
 echo "📝 Copiando configuración..."
@@ -36,8 +36,8 @@ fi
 
 # Verificar permisos de certificados
 echo "🔐 Verificando permisos de certificados..."
-sudo chmod 644 /etc/letsencrypt/archive/n8ne01.entrega.space/fullchain1.pem
-sudo chmod 600 /etc/letsencrypt/archive/n8ne01.entrega.space/privkey1.pem
+sudo chmod 644 /opt/n8n-certs/fullchain.pem
+sudo chmod 600 /opt/n8n-certs/privkey.pem
 
 # Levantar n8n con HTTPS
 echo "🚀 Levantando n8n con HTTPS..."
@@ -49,7 +49,7 @@ sleep 30
 
 # Verificar funcionamiento
 echo "✅ Verificando que n8n esté funcionando..."
-if curl -k -s https://n8ne01.entrega.space:5678 | grep -q "n8n"; then
+if curl -k -s https://n8ne01.entrega.space | grep -q "n8n"; then
     echo "🎉 ¡n8n está funcionando con HTTPS!"
 else
     echo "❌ Error: n8n no responde por HTTPS"
@@ -59,6 +59,6 @@ else
 fi
 
 echo "🎉 ¡Configuración completada!"
-echo "🌐 n8n disponible en: https://n8ne01.entrega.space:5678"
-echo "🔗 Webhook URL: https://n8ne01.entrega.space:5678/webhook/..."
-echo "🔒 SSL certificados montados correctamente"
+echo "🌐 n8n disponible en: https://n8ne01.entrega.space"
+echo "🔗 Webhook URL: https://n8ne01.entrega.space/webhook/..."
+echo "🔒 SSL certificados montados correctamente desde /opt/n8n-certs"
