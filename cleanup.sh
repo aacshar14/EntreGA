@@ -3,6 +3,16 @@
 # Script para limpiar y detener n8n
 echo "🧹 Limpiando n8n..."
 
+# Verificar que estamos en el directorio correcto
+if [ ! -d "compose" ]; then
+    echo "❌ Error: Directorio 'compose' no encontrado"
+    echo "Ejecuta este script desde la raíz del proyecto EntreGA"
+    exit 1
+fi
+
+# Cambiar al directorio compose
+cd compose
+
 # Detener y remover contenedores
 echo "📦 Deteniendo contenedores..."
 docker compose down
@@ -17,3 +27,4 @@ docker compose down
 
 echo "✅ Limpieza completada"
 echo "💡 Para volver a ejecutar: ./setup.sh"
+echo "📍 Asegúrate de ejecutar desde la raíz del proyecto EntreGA"

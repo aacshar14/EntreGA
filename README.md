@@ -33,8 +33,8 @@ Sistema de automatización de workflows con n8n para EntreGA, incluyendo un agen
 
 - **Iniciar servicios:** `./setup.sh`
 - **Detener servicios:** `./cleanup.sh`
-- **Ver logs n8n:** `docker compose logs -f n8n`
-- **Ver logs agente:** `docker compose logs -f entrega-agent`
+- **Ver logs n8n:** `cd compose && docker compose logs -f n8n`
+- **Ver logs agente:** `cd compose && docker compose logs -f entrega-agent`
 
 ## 🌐 Configuración de Servicios
 
@@ -54,7 +54,8 @@ Sistema de automatización de workflows con n8n para EntreGA, incluyendo un agen
 
 ```
 EntreGA/
-├── docker-compose.yml      # Configuración principal de Docker
+├── compose/                 # Configuración de Docker
+│   └── docker-compose.yml  # Servicios n8n y agente IA
 ├── env.txt                 # Variables de entorno
 ├── setup.sh               # Script de instalación
 ├── cleanup.sh             # Script de limpieza
@@ -84,11 +85,26 @@ curl http://n8ne01.entrega.space:8000
 
 ### Verificar logs
 ```bash
+# Ir al directorio compose
+cd compose
+
 # Logs de n8n
 docker compose logs n8n --tail 20
 
 # Logs del agente
 docker compose logs entrega-agent --tail 20
+```
+
+### Comandos útiles
+```bash
+# Desde la raíz del proyecto
+./setup.sh          # Iniciar servicios
+./cleanup.sh        # Detener servicios
+
+# Desde el directorio compose
+cd compose
+docker compose ps   # Ver estado de contenedores
+docker compose logs # Ver logs
 ```
 
 ## 📝 Notas
@@ -99,4 +115,5 @@ docker compose logs entrega-agent --tail 20
 - Ambos servicios comparten la red `entrega_network`
 - Puerto 5678 del host se mapea al puerto 5678 del contenedor n8n
 - Puerto 8000 del host se mapea al puerto 8000 del contenedor del agente
+- **Importante:** Los scripts `setup.sh` y `cleanup.sh` deben ejecutarse desde la raíz del proyecto
 

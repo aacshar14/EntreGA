@@ -3,9 +3,19 @@
 # Script para configurar y ejecutar n8n
 echo "🚀 Configurando n8n para EntreGA..."
 
+# Verificar que estamos en el directorio correcto
+if [ ! -d "compose" ]; then
+    echo "❌ Error: Directorio 'compose' no encontrado"
+    echo "Ejecuta este script desde la raíz del proyecto EntreGA"
+    exit 1
+fi
+
+# Cambiar al directorio compose
+cd compose
+
 # Copiar archivo de configuración
 echo "📝 Copiando configuración..."
-cp env.txt .env
+cp ../env.txt .env
 
 # Verificar configuración
 echo "🔍 Verificando configuración..."
@@ -69,3 +79,4 @@ echo "💡 Si tienes problemas, verifica:"
 echo "   - Firewall permitiendo puertos 5678 y 8000"
 echo "   - DNS apuntando a tu servidor"
 echo "   - Directorio ./iaagent existe para el agente"
+echo "   - Estás ejecutando desde la raíz del proyecto EntreGA"
