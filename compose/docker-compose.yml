@@ -5,7 +5,7 @@ services:
     image: n8nio/n8n:latest
     restart: unless-stopped
     ports:
-      - 5678:5678  # Quitamos 443 del host
+      - 5678:5678  # Exponer solo en HTTP, usaremos NGINX para SSL
     environment:
       - N8N_HOST=n8ne01.entrega.space
       - N8N_PORT=5678
@@ -23,14 +23,16 @@ services:
       - N8N_DATABASE_SQLITE_DATABASE=/home/node/.n8n/database.sqlite
     volumes:
       - n8n_data:/home/node/.n8n
-    networks: [entrega_network]
+    networks:
+      - entrega_network
 
   entrega-agent:
     build: ./iaagent
     restart: always
     ports:
       - 8000:8000
-    networks: [entrega_network]
+    networks:
+      - entrega_network
 
 volumes:
   n8n_data:
